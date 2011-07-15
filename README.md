@@ -12,6 +12,10 @@ to translate media key signals from Gnome and send them to the Spotify client.
 It supports the play/pause, stop, next, and previous signals, and is compatible with
 both Gnome 2 and Gnome 3.
 
+Many thanks to [Mike Houston at kothar.net](http://kothar.net/index.php/blog/30-spotifydbus)
+and [Fran Diéguez at Mabishu](http://www.mabishu.com/blog/2010/11/15/playing-with-d-bus-interface-of-spotify-for-linux/)
+for pointing me in the right directions to get this implemented.
+
 
 Installation
 ------------
@@ -34,10 +38,11 @@ the wrapper first, which will then launch the real Spotify client.  Enjoy having
 keys that work for both Spotify and other media players.
 
 
-License
+Support
 -------
 
 Spotify-Gnome was created by [John Reese](http://johnmreese.com), and copyright (c) 2011.
-
 Spotify-Gnome is licensed under the MIT license.  See the LICENSE files for details.
+
+Bugs can be reported on [my bug tracker](http://leetcode.net/mantis/).
 
