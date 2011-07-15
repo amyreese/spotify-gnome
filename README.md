@@ -14,7 +14,7 @@ both Gnome 2 and Gnome 3.
 
 Many thanks to [Mike Houston at kothar.net](http://kothar.net/index.php/blog/30-spotifydbus)
 and [Fran Diéguez at Mabishu](http://www.mabishu.com/blog/2010/11/15/playing-with-d-bus-interface-of-spotify-for-linux/)
-for pointing me in the right directions to get this implemented.
+for their blog postings that pointed me in the right directions to get this implemented.
 
 
 Installation
