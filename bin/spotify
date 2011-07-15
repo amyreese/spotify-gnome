@@ -1,13 +1,18 @@
 #!/usr/bin/env python
 
 import dbus
-import gobject
+import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
+import gobject
 import os
 import subprocess
 import time
 
 spotify_bin = "/usr/bin/spotify"
+
+class SpotifyPlayer(dbus.service.Object):
+    def __init__(self, conn, object_path="/org/mpris/MediaPlayer2"):
+        dbus.service.Object.__init__(self, conn, object_path)
 
 class SpotifyGnome(object):
 
@@ -50,7 +55,11 @@ class SpotifyGnome(object):
 
         if name == "org.mpris.MediaPlayer2.spotify":
             if after:
-                self.spotify = after
+                self.spotify_id = after
+                self.spotify_bus = self.session_bus.get_object("org.mpris.MediaPlayer2.spotify",
+                                                               "/org/mpris/MediaPlayer2")
+                self.spotify = dbus.Interface(self.spotify_bus,
+                                              "org.mpris.MediaPlayer2.Player")
             else:
                 self.loop.quit()
 
@@ -64,16 +73,16 @@ class SpotifyGnome(object):
                     pass
 
                 elif key == "Play":
-                    pass
+                    self.spotify.PlayPause()
 
                 elif key == "Stop":
-                    pass
+                    self.spotify.Stop()
 
                 elif key == "Next":
-                    pass
+                    self.spotify.Next()
 
                 elif key == "Previous":
-                    pass
+                    self.spotify.Previous()
 
 if __name__ == "__main__":
     SpotifyGnome()
