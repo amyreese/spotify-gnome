@@ -1,7 +1,8 @@
 Spotify Gnome Integration
 -------------------------
 
-This program provides Gnome media key support for the Spotify client on Linux.
+This program provides Gnome media key support for the
+[Spotify Linux client](http://www.spotify.com/us/download/previews/).
 
 The Spotify client supports DBus for controlling the player, using the
 [MPRIS Specification](http://www.mpris.org/2.1/spec/), but does not listen for basic
