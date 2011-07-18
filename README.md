@@ -31,7 +31,7 @@ If it was installed to a different location, you will need to edit `bin/spotify`
 Copy `bin/spotify` to `/usr/local/bin/spotify`, or a different path that takes precedent
 over the location of your `spotify` binary:
 
-    $ sudo install bin/python /usr/local/bin/
+    $ sudo install bin/spotify /usr/local/bin/
 
 Launching `spotify` via application launcher or from the command line should now start
 the wrapper first, which will then launch the real Spotify client.  Enjoy having media
