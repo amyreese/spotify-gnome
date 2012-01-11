@@ -43,6 +43,8 @@ class SpotifyGnome(object):
                                               "/org/gnome/SettingsDaemon/MediaKeys")
             bus.connect_to_signal("MediaPlayerKeyPressed",
                                   self.key_pressed)
+            self.mediakeys = dbus.Interface(bus,
+                                            "org.gnome.SettingsDaemon.MediaKeys")
 
             self.loop = gobject.MainLoop()
             self.loop.run()
@@ -60,7 +62,9 @@ class SpotifyGnome(object):
                                                                "/org/mpris/MediaPlayer2")
                 self.spotify = dbus.Interface(self.spotify_bus,
                                               "org.mpris.MediaPlayer2.Player")
+                self.mediakeys.GrabMediaPlayerKeys("Spotify", time.time())
             else:
+                self.mediakeys.ReleaseMediaPlayerKeys("Spotify")
                 self.loop.quit()
 
     def key_pressed(self, *keys):
