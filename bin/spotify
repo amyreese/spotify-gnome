@@ -3,10 +3,18 @@
 import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
-import gobject
 import os
 import subprocess
 import time
+
+try:
+    from gi.repository import Notify
+    from gi.repository import GObject as gobject
+    ENABLE_NOTIFICATIONS = True
+except:
+    print "Disabling notifications"
+    import gobject
+    ENABLE_NOTIFICATIONS = False
 
 spotify_bin = "/usr/bin/spotify"
 
@@ -45,6 +53,9 @@ class SpotifyGnome(object):
                                   self.key_pressed)
             self.mediakeys = dbus.Interface(bus,
                                             "org.gnome.SettingsDaemon.MediaKeys")
+
+            if ENABLE_NOTIFICATIONS:
+                self.initialize_notifications()
 
             self.loop = gobject.MainLoop()
             self.loop.run()
@@ -87,6 +98,43 @@ class SpotifyGnome(object):
 
                 elif key == "Previous":
                     self.spotify.Previous()
+
+    def initialize_notifications(self):
+        self.current_song = {}
+
+        print "Creating notification"
+        Notify.init("spotify-gnome")
+        self.notification = Notify.Notification.new("Spotify Gnome", None, None)
+
+        print "Connecting to PropertiesChanged"
+        time.sleep(2)
+        bus = self.session_bus.get_object("org.mpris.MediaPlayer2.spotify",
+                                          "/org/mpris/MediaPlayer2")
+        bus.connect_to_signal("PropertiesChanged",
+                              self.properties_changed)
+
+    def properties_changed(self, interface_name, changed_properties, invalid_properties):
+        print "Received PropertiesChanged:"
+        print "  " + repr(changed_properties)
+
+        if 'Metadata' in changed_properties:
+            self.current_song['artist'] = changed_properties['Metadata']['xesam:artist'][0].encode('utf-8')
+            self.current_song['album'] = changed_properties['Metadata']['xesam:album'].encode('utf-8')
+            self.current_song['title'] = changed_properties['Metadata']['xesam:title'].encode('utf-8')
+            self.current_song['year'] = str(changed_properties['Metadata']['xesam:contentCreated'][:4])
+
+        title = self.current_song['title']
+        body = "{0}\n{1} ({2})".format(self.current_song['artist'], self.current_song['album'], self.current_song['year'])
+        icon = "media-playback-start"
+
+        if 'PlaybackStatus' in changed_properties:
+            if changed_properties['PlaybackStatus'] == 'Paused':
+                title = "Paused"
+                body = None
+                icon = "media-playback-pause"
+
+        self.notification.update(title, body, icon)
+        self.notification.show()
 
 if __name__ == "__main__":
     SpotifyGnome()
