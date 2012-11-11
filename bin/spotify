@@ -125,13 +125,15 @@ class SpotifyGnome(object):
 
         title = self.current_song['title']
         body = "{0}\n{1} ({2})".format(self.current_song['artist'], self.current_song['album'], self.current_song['year'])
+        icon = "media-playback-start"
 
         if 'PlaybackStatus' in changed_properties:
             if changed_properties['PlaybackStatus'] == 'Paused':
                 title = "Paused"
                 body = None
+                icon = "media-playback-pause"
 
-        self.notification.update(title, body, "dialog-information")
+        self.notification.update(title, body, icon)
         self.notification.show()
 
 if __name__ == "__main__":
