@@ -76,6 +76,8 @@ class SpotifyGnome(object):
                     self.initialize_notifications()
             else:
                 self.mediakeys.ReleaseMediaPlayerKeys("Spotify")
+                self.notification.close()
+                Notify.uninit()
                 self.loop.quit()
 
     def key_pressed(self, *keys):
