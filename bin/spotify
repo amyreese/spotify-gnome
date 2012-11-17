@@ -119,10 +119,13 @@ class SpotifyGnome(object):
         print "  " + repr(changed_properties)
 
         if 'Metadata' in changed_properties:
-            self.current_song['artist'] = changed_properties['Metadata']['xesam:artist'][0].encode('utf-8')
-            self.current_song['album'] = changed_properties['Metadata']['xesam:album'].encode('utf-8')
-            self.current_song['title'] = changed_properties['Metadata']['xesam:title'].encode('utf-8')
-            self.current_song['year'] = str(changed_properties['Metadata']['xesam:contentCreated'][:4])
+            try:
+                self.current_song['artist'] = changed_properties['Metadata']['xesam:artist'][0].encode('utf-8')
+                self.current_song['album'] = changed_properties['Metadata']['xesam:album'].encode('utf-8')
+                self.current_song['title'] = changed_properties['Metadata']['xesam:title'].encode('utf-8')
+                self.current_song['year'] = str(changed_properties['Metadata']['xesam:contentCreated'][:4])
+            except KeyError:
+                print "Didn't get expected metadata"
 
         title = self.current_song['title']
         body = "{0}\n{1} ({2})".format(self.current_song['artist'], self.current_song['album'], self.current_song['year'])
