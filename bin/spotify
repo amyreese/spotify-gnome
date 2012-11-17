@@ -104,11 +104,11 @@ class SpotifyGnome(object):
     def initialize_notifications(self):
         self.current_song = {}
 
-        print "Creating notification"
+        print "Creating notification..."
         Notify.init("spotify-gnome")
         self.notification = Notify.Notification.new("Spotify Gnome", None, None)
 
-        print "Connecting to PropertiesChanged"
+        print "Connecting to PropertiesChanged..."
         bus = self.session_bus.get_object("org.mpris.MediaPlayer2.spotify",
                                           "/org/mpris/MediaPlayer2")
         bus.connect_to_signal("PropertiesChanged",
