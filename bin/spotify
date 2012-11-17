@@ -54,9 +54,6 @@ class SpotifyGnome(object):
             self.mediakeys = dbus.Interface(bus,
                                             "org.gnome.SettingsDaemon.MediaKeys")
 
-            if ENABLE_NOTIFICATIONS:
-                self.initialize_notifications()
-
             self.loop = gobject.MainLoop()
             self.loop.run()
 
@@ -74,6 +71,9 @@ class SpotifyGnome(object):
                 self.spotify = dbus.Interface(self.spotify_bus,
                                               "org.mpris.MediaPlayer2.Player")
                 self.mediakeys.GrabMediaPlayerKeys("Spotify", time.time())
+
+                if ENABLE_NOTIFICATIONS:
+                    self.initialize_notifications()
             else:
                 self.mediakeys.ReleaseMediaPlayerKeys("Spotify")
                 self.loop.quit()
@@ -107,7 +107,6 @@ class SpotifyGnome(object):
         self.notification = Notify.Notification.new("Spotify Gnome", None, None)
 
         print "Connecting to PropertiesChanged"
-        time.sleep(2)
         bus = self.session_bus.get_object("org.mpris.MediaPlayer2.spotify",
                                           "/org/mpris/MediaPlayer2")
         bus.connect_to_signal("PropertiesChanged",
