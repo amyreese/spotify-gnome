@@ -136,6 +136,10 @@ class SpotifyGnome(object):
                 title = "Paused"
                 body = None
                 icon = "media-playback-pause"
+            if changed_properties['PlaybackStatus'] == 'Stopped':
+                title = "Stopped"
+                body = None
+                icon = "media-playback-stop"
 
         self.notification.update(title, body, icon)
         self.notification.show()
