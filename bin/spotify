@@ -17,8 +17,8 @@ except:
     import gobject
     ENABLE_NOTIFICATIONS = False
 try:
-	from gi.repository import TelepathyGLib as telepathy
-	ENABLE_TELEPATHY = True
+    from gi.repository import TelepathyGLib as telepathy
+    ENABLE_TELEPATHY = True
 except:
     print "Disabling telepathy support"
     import gobject
@@ -85,7 +85,7 @@ class SpotifyGnome(object):
                 if ENABLE_NOTIFICATIONS:
                     self.initialize_notifications()
                 if ENABLE_TELEPATHY:
-					self.initialize_telepathy()
+                    self.initialize_telepathy()
             else:
                 self.mediakeys.ReleaseMediaPlayerKeys("Spotify")
                 if ENABLE_NOTIFICATIONS:
@@ -120,15 +120,15 @@ class SpotifyGnome(object):
         self.telepathy_accn_manager = telepathy.AccountManager.dup()
         self.telepathy_accn_manager.prepare_async(None, lambda *args: self.telepathy_loop.quit(), None)
         self.telepathy_away = True
-    
-    
+
+
     def initialize_notifications(self):
         self.current_song = {}
 
         print "Creating notification..."
         Notify.init("spotify-gnome")
         self.notification = Notify.Notification.new("Spotify Gnome", None, None)
-        
+
         print "Connecting to PropertiesChanged..."
         bus = self.session_bus.get_object("org.mpris.MediaPlayer2.spotify",
                                           "/org/mpris/MediaPlayer2")
