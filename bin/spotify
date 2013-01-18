@@ -11,12 +11,18 @@ import time
 try:
     from gi.repository import Notify
     from gi.repository import GObject as gobject
-    from gi.repository import TelepathyGLib as Tp
     ENABLE_NOTIFICATIONS = True
 except:
     print "Disabling notifications"
     import gobject
     ENABLE_NOTIFICATIONS = False
+try:
+	from gi.repository import TelepathyGLib as telepathy
+	ENABLE_TELEPATHY = True
+except:
+    print "Disabling telepathy support"
+    import gobject
+    ENABLE_TELEPATHY = False
 
 spotify_bin = "/usr/bin/spotify"
 
@@ -78,12 +84,15 @@ class SpotifyGnome(object):
 
                 if ENABLE_NOTIFICATIONS:
                     self.initialize_notifications()
+                if ENABLE_TELEPATHY:
+					self.initialize_telepathy()
             else:
                 self.mediakeys.ReleaseMediaPlayerKeys("Spotify")
                 if ENABLE_NOTIFICATIONS:
                     self.notification.close()
                     Notify.uninit()
                 self.loop.quit()
+                self.telepathy_loop.quit()
 
     def key_pressed(self, *keys):
         print "Received MediaPlayerKeyPressed:"
@@ -106,6 +115,13 @@ class SpotifyGnome(object):
                 elif key == "Previous":
                     self.spotify.Previous()
 
+    def initialize_telepathy(self):
+        print "Connecting to Telepathy..."
+        self.telepathy_accn_manager = telepathy.AccountManager.dup()
+        self.telepathy_accn_manager.prepare_async(None, lambda *args: self.telepathy_loop.quit(), None)
+        self.telepathy_away = True
+    
+    
     def initialize_notifications(self):
         self.current_song = {}
 
@@ -113,10 +129,6 @@ class SpotifyGnome(object):
         Notify.init("spotify-gnome")
         self.notification = Notify.Notification.new("Spotify Gnome", None, None)
         
-        print "Connecting to Telepathy..."
-        self.am = Tp.AccountManager.dup()
-        self.am.prepare_async(None, lambda *args: self.telepathy_loop.quit(), None)
-
         print "Connecting to PropertiesChanged..."
         bus = self.session_bus.get_object("org.mpris.MediaPlayer2.spotify",
                                           "/org/mpris/MediaPlayer2")
@@ -160,9 +172,9 @@ class SpotifyGnome(object):
         self.notification.show()
         status = "♫ ".decode('utf8')+status_content+" ♫".decode('utf8')
         if self.telepathy_away :
-            self.am.set_all_requested_presences(Tp.ConnectionPresenceType.AWAY,'away', status)
+            self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AWAY,'away', status)
         else:
-            self.am.set_all_requested_presences(Tp.ConnectionPresenceType.AVAILABLE,'available', status)
+            self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AVAILABLE,'available', status)
 
 if __name__ == "__main__":
     SpotifyGnome()
