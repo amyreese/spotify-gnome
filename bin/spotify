@@ -171,10 +171,11 @@ class SpotifyGnome(object):
         self.notification.update(title, body, icon)
         self.notification.show()
         status = "♫ ".decode('utf8')+status_content+" ♫".decode('utf8')
-        if self.telepathy_away :
-            self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AWAY,'away', status)
-        else:
-            self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AVAILABLE,'available', status)
+        if ENABLE_TELEPATHY:
+	        if self.telepathy_away :
+	            self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AWAY,'away', status)
+	        else:
+	            self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AVAILABLE,'available', status)
 
 if __name__ == "__main__":
     SpotifyGnome()
