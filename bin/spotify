@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+# coding: utf-8
 
 import dbus
 import dbus.service
@@ -15,6 +16,13 @@ except:
     print "Disabling notifications"
     import gobject
     ENABLE_NOTIFICATIONS = False
+try:
+    from gi.repository import TelepathyGLib as telepathy
+    ENABLE_TELEPATHY = True
+except:
+    print "Disabling telepathy support"
+    import gobject
+    ENABLE_TELEPATHY = False
 
 spotify_bin = "/usr/bin/spotify"
 
@@ -55,7 +63,9 @@ class SpotifyGnome(object):
                                             "org.gnome.SettingsDaemon.MediaKeys")
 
             self.loop = gobject.MainLoop()
+            self.telepathy_loop = gobject.MainLoop()
             self.loop.run()
+            self.telepathy_loop.run()
 
             print "Done"
 
@@ -74,12 +84,15 @@ class SpotifyGnome(object):
 
                 if ENABLE_NOTIFICATIONS:
                     self.initialize_notifications()
+                if ENABLE_TELEPATHY:
+                    self.initialize_telepathy()
             else:
                 self.mediakeys.ReleaseMediaPlayerKeys("Spotify")
                 if ENABLE_NOTIFICATIONS:
                     self.notification.close()
                     Notify.uninit()
                 self.loop.quit()
+                self.telepathy_loop.quit()
 
     def key_pressed(self, *keys):
         print "Received MediaPlayerKeyPressed:"
@@ -101,6 +114,13 @@ class SpotifyGnome(object):
 
                 elif key == "Previous":
                     self.spotify.Previous()
+
+    def initialize_telepathy(self):
+        print "Connecting to Telepathy..."
+        self.telepathy_accn_manager = telepathy.AccountManager.dup()
+        self.telepathy_accn_manager.prepare_async(None, lambda *args: self.telepathy_loop.quit(), None)
+        self.telepathy_away = True
+
 
     def initialize_notifications(self):
         self.current_song = {}
@@ -131,19 +151,31 @@ class SpotifyGnome(object):
         title = self.current_song['title']
         body = "{0}\n{1} ({2})".format(self.current_song['artist'], self.current_song['album'], self.current_song['year'])
         icon = "media-playback-start"
+        status_content = 'Spotify : '+self.current_song["title"]+' - '+self.current_song["artist"]
+        self.telepathy_away = False
 
         if 'PlaybackStatus' in changed_properties:
             if changed_properties['PlaybackStatus'] == 'Paused':
                 title = "Paused"
                 body = None
                 icon = "media-playback-pause"
+                status_content = 'Spotify : Paused'
+                self.telepathy_away = True
             if changed_properties['PlaybackStatus'] == 'Stopped':
                 title = "Stopped"
                 body = None
                 icon = "media-playback-stop"
+                status_content = 'Spotify : Stopped'
+                self.telepathy_away = True
 
         self.notification.update(title, body, icon)
         self.notification.show()
+        status = "♫ ".decode('utf8')+status_content+" ♫".decode('utf8')
+        if ENABLE_TELEPATHY:
+	        if self.telepathy_away :
+	            self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AWAY,'away', status)
+	        else:
+	            self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AVAILABLE,'available', status)
 
 if __name__ == "__main__":
     SpotifyGnome()
