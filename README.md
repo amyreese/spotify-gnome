@@ -13,8 +13,7 @@ It supports the play/pause, stop, next, and previous signals, and is compatible 
 both Gnome 2 and Gnome 3.
 
 NEW Jan 2013 - Get Now Playing integration for telepathy based clients such as 
-Empathy,Pidgin,Kde Telepathy Sugar using lib telepahty support from gobject-introspection. 
-- dhananjaysathe@gmail.com
+Empathy,Pidgin,Kde Telepathy Sugar using lib telepahty support from gobject-introspection - dhananjaysathe@gmail.com
 
 Many thanks to [Mike Houston at kothar.net](http://kothar.net/index.php/blog/30-spotifydbus)
 and [Fran Diéguez at Mabishu](http://www.mabishu.com/blog/2010/11/15/playing-with-d-bus-interface-of-spotify-for-linux/)
@@ -46,7 +45,7 @@ Support
 -------
 
 Spotify-Gnome was created by [John Reese](http://johnmreese.com), and copyright (c) 2011.
-Telepathy support - [Dhananjay Sathe] [http://dsathe.blogspot.com]
+Telepathy support - [Dhananjay Sathe](http://dsathe.blogspot.com)
 Spotify-Gnome is licensed under the MIT license.  See the LICENSE files for details.
 
 Bugs can be reported on [my bug tracker](http://leetcode.net/mantis/).
