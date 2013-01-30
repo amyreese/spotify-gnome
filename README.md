@@ -14,6 +14,7 @@ both Gnome 2 and Gnome 3.
 
 NEW Jan 2013 - Get Now Playing integration for telepathy based clients such as 
 Empathy,Pidgin,Kde Telepathy Sugar using lib telepahty support from gobject-introspection - dhananjaysathe@gmail.com
+Edit : Added basic advertisement filtering for advertisements in the telepathy statuses
 
 Many thanks to [Mike Houston at kothar.net](http://kothar.net/index.php/blog/30-spotifydbus)
 and [Fran Diéguez at Mabishu](http://www.mabishu.com/blog/2010/11/15/playing-with-d-bus-interface-of-spotify-for-linux/)
