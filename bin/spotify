@@ -175,7 +175,7 @@ class SpotifyGnome(object):
             if self.telepathy_away :
                 self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AWAY,'away', status)
             else:
-                if not re.search('^spotify:|^http://',self.current_song["album"]):
+                if not re.search('^spotify:|^https?://',self.current_song["album"]):
                     self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AVAILABLE,'available', status)
 
 if __name__ == "__main__":
