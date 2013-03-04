@@ -9,9 +9,10 @@ import subprocess
 import time
 import re
 import urllib2
-import tempfile
-import shutil
 import base64
+from gi.repository import GLib
+
+ALBUM_ART_TIMEOUT = 3
 
 try:
     from gi.repository import Notify
@@ -69,19 +70,14 @@ class SpotifyGnome(object):
 
             try:
                 print "Setting up temp directory"
-                self.temp_dir = tempfile.mkdtemp("", "spotify-gnome")
-
+                self.cache_dir = os.path.join(GLib.get_user_cache_dir(), 'spotify-gnome')
+                if not os.path.isdir(self.cache_dir):
+                    os.mkdir(self.cache_dir);
                 self.loop = gobject.MainLoop()
                 self.telepathy_loop = gobject.MainLoop()
                 self.loop.run()
             finally:
-                try:
-                    print "Clearing temp directory"
-                    shutil.rmtree(self.temp_dir)
-                    print "Done"
-                except OSError, e:
-                    if e.errno != 2:
-                        raise
+                print "Done"
 
     def name_owner_changed(self, name, before, after):
         print "Received NameOwnerChanged:"
@@ -169,9 +165,9 @@ class SpotifyGnome(object):
         iconUrl = self.current_song['albumArt']
         iconName = base64.urlsafe_b64encode(self.current_song['album'])+".png"
         try:
-            iconPath = self.temp_dir+"/"+iconName
-            if not os.path.isfile(self.temp_dir+"/"+iconName):
-                result = urllib2.urlopen(iconUrl)
+            iconPath = os.path.join(self.cache_dir, iconName)
+            if not os.path.isfile(iconPath):
+                result = urllib2.urlopen(iconUrl, None, ALBUM_ART_TIMEOUT)
                 with open(iconPath, "w") as iconFile:
                     iconFile.write(result.read())
             icon = iconPath
