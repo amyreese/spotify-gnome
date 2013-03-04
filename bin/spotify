@@ -8,6 +8,11 @@ import os
 import subprocess
 import time
 import re
+import urllib2
+import tempfile
+import shutil
+import base64
+
 try:
     from gi.repository import Notify
     from gi.repository import GObject as gobject
@@ -62,12 +67,21 @@ class SpotifyGnome(object):
             self.mediakeys = dbus.Interface(bus,
                                             "org.gnome.SettingsDaemon.MediaKeys")
 
-            self.loop = gobject.MainLoop()
-            self.telepathy_loop = gobject.MainLoop()
-            self.loop.run()
-            self.telepathy_loop.run()
+            try:
+                print "Setting up temp directory"
+                self.temp_dir = tempfile.mkdtemp("", "spotify-gnome")
 
-            print "Done"
+                self.loop = gobject.MainLoop()
+                self.telepathy_loop = gobject.MainLoop()
+                self.loop.run()
+            finally:
+                try:
+                    print "Clearing temp directory"
+                    shutil.rmtree(self.temp_dir)
+                    print "Done"
+                except OSError, e:
+                    if e.errno != 2:
+                        raise
 
     def name_owner_changed(self, name, before, after):
         print "Received NameOwnerChanged:"
@@ -87,12 +101,13 @@ class SpotifyGnome(object):
                 if ENABLE_TELEPATHY:
                     self.initialize_telepathy()
             else:
+                print "Shutting down"
                 self.mediakeys.ReleaseMediaPlayerKeys("Spotify")
                 if ENABLE_NOTIFICATIONS:
                     self.notification.close()
                     Notify.uninit()
                 self.loop.quit()
-                self.telepathy_loop.quit()
+                print "Finished shutting down"
 
     def key_pressed(self, *keys):
         print "Received MediaPlayerKeyPressed:"
@@ -145,12 +160,25 @@ class SpotifyGnome(object):
                 self.current_song['album'] = changed_properties['Metadata']['xesam:album'].encode('utf-8')
                 self.current_song['title'] = changed_properties['Metadata']['xesam:title'].encode('utf-8')
                 self.current_song['year'] = str(changed_properties['Metadata']['xesam:contentCreated'][:4])
+                self.current_song['albumArt'] = changed_properties['Metadata']['mpris:artUrl'].encode('utf-8')
             except KeyError:
                 print "Didn't get expected metadata"
 
         title = self.current_song['title']
         body = "{0}\n{1} ({2})".format(self.current_song['artist'], self.current_song['album'], self.current_song['year'])
-        icon = "media-playback-start"
+        iconUrl = self.current_song['albumArt']
+        iconName = base64.urlsafe_b64encode(self.current_song['album'])+".png"
+        try:
+            iconPath = self.temp_dir+"/"+iconName
+            if not os.path.isfile(self.temp_dir+"/"+iconName):
+                result = urllib2.urlopen(iconUrl)
+                with open(iconPath, "w") as iconFile:
+                    iconFile.write(result.read())
+            icon = iconPath
+        except Exception as e:
+            print(e)
+            icon = "media-playback-start"
+        
         status_content = 'Spotify : '+self.current_song["title"]+' - '+self.current_song["artist"]
         self.telepathy_away = False
 
