@@ -1,15 +1,16 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
+import base64
 import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 import os
 import subprocess
+import sys
 import time
 import re
 import urllib2
-import base64
 from gi.repository import GLib
 
 ALBUM_ART_TIMEOUT = 3
@@ -45,7 +46,8 @@ class SpotifyGnome(object):
             time.sleep(1)
             print "Launching Spotify..."
             self.spotify = None
-            args = [spotify_bin]
+            args = [spotify_bin] + sys.argv[1:]
+            print " ".join(args)
             os.execv(spotify_bin, args)
 
         else:
