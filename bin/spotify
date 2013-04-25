@@ -193,7 +193,7 @@ class TelepathyHandler(object):
 
 
 class SpotifyGnome(object):
-    def __init__(self):
+    def __init__(self, handlers=[]):
         pid = os.fork()
 
         if pid == 0:
@@ -204,6 +204,9 @@ class SpotifyGnome(object):
             os.execv(spotify_bin, args)
 
         else:
+            self.handler_classes = handlers
+            self.handlers = []
+
             print "Setting up DBus..."
             bus_loop = DBusGMainLoop(set_as_default=True)
             self.session_bus = dbus.SessionBus(mainloop=bus_loop)
@@ -227,23 +230,25 @@ class SpotifyGnome(object):
 
         if name == "org.mpris.MediaPlayer2.spotify":
             if after:
-                self.media_keys_handler = MediaKeysHandler(self.session_bus)
-
-                if ENABLE_NOTIFICATIONS:
-                    self.notification_handler = NotificationsHandler(self.session_bus)
-                if ENABLE_TELEPATHY:
-                    self.telepathy_handler = TelepathyHandler(self.session_bus)
+                for handler_class in self.handler_classes:
+                    self.handlers.append(handler_class(self.session_bus))
             else:
                 print "Shutting down"
 
-                self.media_keys_handler.shutdown()
-
-                if ENABLE_NOTIFICATIONS:
-                    self.notification_handler.shutdown()
+                for handler in self.handlers:
+                    handler.shutdown()
 
                 self.loop.quit()
 
                 print "Finished shutting down"
 
 if __name__ == "__main__":
-    SpotifyGnome()
+    handlers = [MediaKeysHandler]
+
+    if ENABLE_NOTIFICATIONS:
+      handlers.append(NotificationsHandler)
+
+    if ENABLE_TELEPATHY:
+      handlers.append(TelepathyHandler)
+
+    SpotifyGnome(handlers)
