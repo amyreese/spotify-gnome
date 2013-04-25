@@ -41,8 +41,13 @@ class SpotifyPlayer(dbus.service.Object):
 
 
 class MediaKeysHandler(object):
-    def __init__(self, session_bus, spotify):
-        self.spotify = spotify
+    def __init__(self, session_bus):
+        print "Finding Spotify..."
+        spotify_bus = session_bus.get_object("org.mpris.MediaPlayer2.spotify",
+                                             "/org/mpris/MediaPlayer2")
+        self.spotify = dbus.Interface(spotify_bus,
+                                      "org.mpris.MediaPlayer2.Player")
+
         print "Connect to MediaKeys..."
         bus = session_bus.get_object("org.gnome.SettingsDaemon",
                                           "/org/gnome/SettingsDaemon/MediaKeys")
@@ -196,7 +201,6 @@ class SpotifyGnome(object):
         if pid == 0:
             time.sleep(1)
             print "Launching Spotify..."
-            self.spotify = None
             args = [spotify_bin] + sys.argv[1:]
             print " ".join(args)
             os.execv(spotify_bin, args)
@@ -225,13 +229,7 @@ class SpotifyGnome(object):
 
         if name == "org.mpris.MediaPlayer2.spotify":
             if after:
-                self.spotify_id = after
-                self.spotify_bus = self.session_bus.get_object("org.mpris.MediaPlayer2.spotify",
-                                                               "/org/mpris/MediaPlayer2")
-                self.spotify = dbus.Interface(self.spotify_bus,
-                                              "org.mpris.MediaPlayer2.Player")
-
-                self.media_keys_handler = MediaKeysHandler(self.session_bus, self.spotify)
+                self.media_keys_handler = MediaKeysHandler(self.session_bus)
 
                 if ENABLE_NOTIFICATIONS:
                     self.notification_handler = NotificationsHandler(self.session_bus)
