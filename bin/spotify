@@ -15,23 +15,6 @@ from gi.repository import GLib
 
 ALBUM_ART_TIMEOUT = 3
 
-try:
-    from gi.repository import Notify
-    from gi.repository import GObject as gobject
-    ENABLE_NOTIFICATIONS = True
-except:
-    print "Disabling notifications"
-    import gobject
-    ENABLE_NOTIFICATIONS = False
-
-try:
-    from gi.repository import TelepathyGLib as telepathy
-    ENABLE_TELEPATHY = True
-except:
-    print "Disabling telepathy support"
-    import gobject
-    ENABLE_TELEPATHY = False
-
 spotify_bin = "/usr/bin/spotify"
 
 
@@ -43,7 +26,6 @@ class Handler(object):
 
   def shutdown(self):
     raise NotImplementedError("Handlers must implement shutdown.")
-
 
 
 class MediaKeysHandler(Handler):
@@ -253,13 +235,22 @@ class SpotifyGnome(object):
 
                 print "Finished shutting down"
 
+
 if __name__ == "__main__":
     handlers = [MediaKeysHandler]
 
-    if ENABLE_NOTIFICATIONS:
-      handlers.append(NotificationsHandler)
+    try:
+        from gi.repository import Notify
+        from gi.repository import GObject as gobject
+        handlers.append(NotificationsHandler)
+    except:
+        print "Disabling notifications"
+        import gobject
 
-    if ENABLE_TELEPATHY:
-      handlers.append(TelepathyHandler)
+    try:
+        from gi.repository import TelepathyGLib as telepathy
+        handlers.append(TelepathyHandler)
+    except:
+        print "Disabling telepathy support"
 
     SpotifyGnome(handlers)
