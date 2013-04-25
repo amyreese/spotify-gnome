@@ -163,6 +163,7 @@ class FetchAndUpdateCoverIcon(threading.Thread):
         self.title = title
         self.body = body
         self.notification_lock = notification_lock
+        self.name = "FetchAndUpdateCoverIcon-%f" % time.time()
 
         self.cache_dir = os.path.join(GLib.get_user_cache_dir(), 'spotify-gnome')
 
@@ -181,6 +182,15 @@ class FetchAndUpdateCoverIcon(threading.Thread):
             print(e)
             print "URL was: " + self.icon_url
             icon = "media-playback-start"
+
+        for thread in threading.enumerate():
+            try:
+                current_name, current_time = threading.current_thread().name.split("-")
+                thread_name, thread_time = thread.name.split("-")
+            except ValueError:
+                continue
+            if current_name == thread_name and float(current_time) < float(thread_time):
+                return
 
         with self.notification_lock:
             self.notification.update(self.title, self.body, icon)
