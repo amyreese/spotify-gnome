@@ -188,6 +188,9 @@ class TelepathyHandler(object):
             if not re.search('^spotify:|^https?://',self.current_song["album"]):
                 self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AVAILABLE,'available', status)
 
+    def shutdown(self):
+        pass
+
 
 class SpotifyGnome(object):
     def __init__(self):
