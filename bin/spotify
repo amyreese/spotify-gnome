@@ -35,11 +35,6 @@ except:
 spotify_bin = "/usr/bin/spotify"
 
 
-class SpotifyPlayer(dbus.service.Object):
-    def __init__(self, conn, object_path="/org/mpris/MediaPlayer2"):
-        dbus.service.Object.__init__(self, conn, object_path)
-
-
 class MediaKeysHandler(object):
     def __init__(self, session_bus):
         print "Finding Spotify..."
