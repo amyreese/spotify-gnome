@@ -35,7 +35,18 @@ except:
 spotify_bin = "/usr/bin/spotify"
 
 
-class MediaKeysHandler(object):
+class Handler(object):
+  """An abstract handler class.
+  Handlers should implement __init__(session_bus) and shutdown()."""
+  def __init__(self, session_bus):
+    raise NotImplementedError("Handlers must implement __init__.")
+
+  def shutdown(self):
+    raise NotImplementedError("Handlers must implement shutdown.")
+
+
+
+class MediaKeysHandler(Handler):
     def __init__(self, session_bus):
         print "Finding Spotify..."
         spotify_bus = session_bus.get_object("org.mpris.MediaPlayer2.spotify",
@@ -77,7 +88,7 @@ class MediaKeysHandler(object):
                     self.spotify.Previous()
 
 
-class NotificationsHandler(object):
+class NotificationsHandler(Handler):
     def __init__(self, session_bus):
         self.current_song = {}
 
@@ -143,7 +154,7 @@ class NotificationsHandler(object):
         Notify.uninit()
 
 
-class TelepathyHandler(object):
+class TelepathyHandler(Handler):
     def __init__(self, session_bus):
         self.current_song = {}
         self.telepathy_loop = gobject.MainLoop()
