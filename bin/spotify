@@ -70,20 +70,13 @@ class MediaKeysHandler(Handler):
                     self.spotify.Previous()
 
 
-class NotificationsHandler(Handler):
+class CurrentSongHandler(object):
+    """Mixin used to connect to the session bus and update self.current_song on properties_changed.
+    Handlers using this mixin must implement current_song_changed(self)."""
     def __init__(self, session_bus):
         self.current_song = {}
-
-        print "Creating notification..."
-        Notify.init("spotify-gnome")
-        self.notification = Notify.Notification.new("Spotify Gnome", None, None)
-
-        print "Setting up temp directory"
-        self.cache_dir = os.path.join(GLib.get_user_cache_dir(), 'spotify-gnome')
-        if not os.path.isdir(self.cache_dir):
-            os.mkdir(self.cache_dir);
-
-        print "Connecting NotificationsHandler to PropertiesChanged..."
+        
+        print "Connecting to PropertiesChanged..."
         bus = session_bus.get_object("org.mpris.MediaPlayer2.spotify",
                                           "/org/mpris/MediaPlayer2")
         bus.connect_to_signal("PropertiesChanged",
@@ -102,9 +95,33 @@ class NotificationsHandler(Handler):
                 self.current_song['albumArt'] = changed_properties['Metadata']['mpris:artUrl'].encode('utf-8')
             except KeyError:
                 print "Didn't get expected metadata"
+        
+        if 'PlaybackStatus' in changed_properties:
+            self.current_song['playback_status'] = changed_properties['PlaybackStatus']
+        
+        self.current_song_changed()
+    
+    def current_song_changed(self):
+        raise NotImplementedError("CurrentSongHandlerss must implement current_song_changed(self)")
 
+
+class NotificationsHandler(Handler, CurrentSongHandler):
+    def __init__(self, session_bus):
+        CurrentSongHandler.__init__(self, session_bus)
+
+        print "Creating notification..."
+        Notify.init("spotify-gnome")
+        self.notification = Notify.Notification.new("Spotify Gnome", None, None)
+
+        print "Setting up temp directory"
+        self.cache_dir = os.path.join(GLib.get_user_cache_dir(), 'spotify-gnome')
+        if not os.path.isdir(self.cache_dir):
+            os.mkdir(self.cache_dir);
+
+    def current_song_changed(self):
         title = self.current_song['title']
         body = "{0}\n{1} ({2})".format(self.current_song['artist'], self.current_song['album'], self.current_song['year'])
+        
         iconUrl = self.current_song['albumArt']
         iconName = base64.urlsafe_b64encode(self.current_song['album'])+".png"
         try:
@@ -118,12 +135,12 @@ class NotificationsHandler(Handler):
             print(e)
             icon = "media-playback-start"
 
-        if 'PlaybackStatus' in changed_properties:
-            if changed_properties['PlaybackStatus'] == 'Paused':
+        if 'playback_status' in self.current_song:
+            if self.current_song['playback_status'] == 'Paused':
                 title = "Paused"
                 body = None
                 icon = "media-playback-pause"
-            if changed_properties['PlaybackStatus'] == 'Stopped':
+            if self.current_song['playback_status'] == 'Stopped':
                 title = "Stopped"
                 body = None
                 icon = "media-playback-stop"
@@ -136,9 +153,10 @@ class NotificationsHandler(Handler):
         Notify.uninit()
 
 
-class TelepathyHandler(Handler):
+class TelepathyHandler(Handler, CurrentSongHandler):
     def __init__(self, session_bus):
-        self.current_song = {}
+        CurrentSongHandler.__init__(self, session_bus)
+        
         self.telepathy_loop = gobject.MainLoop()
 
         print "Connecting to Telepathy..."
@@ -146,32 +164,13 @@ class TelepathyHandler(Handler):
         self.telepathy_accn_manager.prepare_async(None, lambda *args: self.telepathy_loop.quit(), None)
         self.telepathy_away = True
 
-        print "Connecting TelepathyHandler to PropertiesChanged..."
-        bus = session_bus.get_object("org.mpris.MediaPlayer2.spotify",
-                                          "/org/mpris/MediaPlayer2")
-        bus.connect_to_signal("PropertiesChanged",
-                              self.properties_changed)
-
-    def properties_changed(self, interface_name, changed_properties, invalid_properties):
-        if 'Metadata' in changed_properties:
-            try:
-                self.current_song['artist'] = changed_properties['Metadata']['xesam:artist'][0].encode('utf-8')
-                self.current_song['album'] = changed_properties['Metadata']['xesam:album'].encode('utf-8')
-                self.current_song['title'] = changed_properties['Metadata']['xesam:title'].encode('utf-8')
-                self.current_song['year'] = str(changed_properties['Metadata']['xesam:contentCreated'][:4])
-                self.current_song['albumArt'] = changed_properties['Metadata']['mpris:artUrl'].encode('utf-8')
-            except KeyError:
-                print "Didn't get expected metadata"
-
+    def current_song_changed(self):
         status_content = 'Spotify : '+self.current_song["title"]+' - '+self.current_song["artist"]
         self.telepathy_away = False
 
-        if 'PlaybackStatus' in changed_properties:
-            if changed_properties['PlaybackStatus'] == 'Paused':
-                status_content = 'Spotify : Paused'
-                self.telepathy_away = True
-            if changed_properties['PlaybackStatus'] == 'Stopped':
-                status_content = 'Spotify : Stopped'
+        if 'playback_status' in self.current_song:
+            if self.current_song['playback_status'] in ['Paused', 'Stopped']:
+                status_content = 'Spotify : ' + self.current_song['playback_status']
                 self.telepathy_away = True
 
         status = "♫ ".decode('utf8')+status_content+" ♫".decode('utf8')
