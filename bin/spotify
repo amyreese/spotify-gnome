@@ -102,7 +102,7 @@ class CurrentSongHandler(object):
         self.current_song_changed()
     
     def current_song_changed(self):
-        raise NotImplementedError("CurrentSongHandlerss must implement current_song_changed(self)")
+        raise NotImplementedError("CurrentSongHandlers must implement current_song_changed(self)")
 
 
 class NotificationsHandler(Handler, CurrentSongHandler):
