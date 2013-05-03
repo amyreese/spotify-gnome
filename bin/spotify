@@ -15,97 +15,38 @@ from gi.repository import GLib
 
 ALBUM_ART_TIMEOUT = 3
 
-try:
-    from gi.repository import Notify
-    from gi.repository import GObject as gobject
-    ENABLE_NOTIFICATIONS = True
-except:
-    print "Disabling notifications"
-    import gobject
-    ENABLE_NOTIFICATIONS = False
-try:
-    from gi.repository import TelepathyGLib as telepathy
-    ENABLE_TELEPATHY = True
-except:
-    print "Disabling telepathy support"
-    import gobject
-    ENABLE_TELEPATHY = False
-
 spotify_bin = "/usr/bin/spotify"
 
-class SpotifyPlayer(dbus.service.Object):
-    def __init__(self, conn, object_path="/org/mpris/MediaPlayer2"):
-        dbus.service.Object.__init__(self, conn, object_path)
 
-class SpotifyGnome(object):
+class Handler(object):
+  """An abstract handler class.
+  Handlers should implement __init__(session_bus) and shutdown()."""
+  def __init__(self, session_bus):
+    raise NotImplementedError("Handlers must implement __init__.")
 
-    def __init__(self):
-        pid = os.fork()
+  def shutdown(self):
+    raise NotImplementedError("Handlers must implement shutdown.")
 
-        if pid == 0:
-            time.sleep(1)
-            print "Launching Spotify..."
-            self.spotify = None
-            args = [spotify_bin] + sys.argv[1:]
-            print " ".join(args)
-            os.execv(spotify_bin, args)
 
-        else:
-            print "Setting up DBus..."
-            bus_loop = DBusGMainLoop(set_as_default=True)
-            self.session_bus = dbus.SessionBus(mainloop=bus_loop)
+class MediaKeysHandler(Handler):
+    def __init__(self, session_bus):
+        print "Finding Spotify..."
+        spotify_bus = session_bus.get_object("org.mpris.MediaPlayer2.spotify",
+                                             "/org/mpris/MediaPlayer2")
+        self.spotify = dbus.Interface(spotify_bus,
+                                      "org.mpris.MediaPlayer2.Player")
 
-            print "Connecting to NameOwnerChanged..."
-            bus = self.session_bus.get_object("org.freedesktop.DBus",
-                                              "/org/freedesktop/DBus")
-            bus.connect_to_signal("NameOwnerChanged",
-                                  self.name_owner_changed,
-                                  arg0="org.mpris.MediaPlayer2.spotify")
+        print "Connect to MediaKeys..."
+        bus = session_bus.get_object("org.gnome.SettingsDaemon",
+                                          "/org/gnome/SettingsDaemon/MediaKeys")
+        bus.connect_to_signal("MediaPlayerKeyPressed",
+                              self.key_pressed)
+        self.mediakeys = dbus.Interface(bus,
+                                        "org.gnome.SettingsDaemon.MediaKeys")
+        self.mediakeys.GrabMediaPlayerKeys("Spotify", time.time())
 
-            print "Connect to MediaKeys..."
-            bus = self.session_bus.get_object("org.gnome.SettingsDaemon",
-                                              "/org/gnome/SettingsDaemon/MediaKeys")
-            bus.connect_to_signal("MediaPlayerKeyPressed",
-                                  self.key_pressed)
-            self.mediakeys = dbus.Interface(bus,
-                                            "org.gnome.SettingsDaemon.MediaKeys")
-
-            try:
-                print "Setting up temp directory"
-                self.cache_dir = os.path.join(GLib.get_user_cache_dir(), 'spotify-gnome')
-                if not os.path.isdir(self.cache_dir):
-                    os.mkdir(self.cache_dir);
-                self.loop = gobject.MainLoop()
-                self.telepathy_loop = gobject.MainLoop()
-                self.loop.run()
-            finally:
-                print "Done"
-
-    def name_owner_changed(self, name, before, after):
-        print "Received NameOwnerChanged:"
-        print "  {0} - {1} - {2}".format(name, before, after)
-
-        if name == "org.mpris.MediaPlayer2.spotify":
-            if after:
-                self.spotify_id = after
-                self.spotify_bus = self.session_bus.get_object("org.mpris.MediaPlayer2.spotify",
-                                                               "/org/mpris/MediaPlayer2")
-                self.spotify = dbus.Interface(self.spotify_bus,
-                                              "org.mpris.MediaPlayer2.Player")
-                self.mediakeys.GrabMediaPlayerKeys("Spotify", time.time())
-
-                if ENABLE_NOTIFICATIONS:
-                    self.initialize_notifications()
-                if ENABLE_TELEPATHY:
-                    self.initialize_telepathy()
-            else:
-                print "Shutting down"
-                self.mediakeys.ReleaseMediaPlayerKeys("Spotify")
-                if ENABLE_NOTIFICATIONS:
-                    self.notification.close()
-                    Notify.uninit()
-                self.loop.quit()
-                print "Finished shutting down"
+    def shutdown(self):
+        self.mediakeys.ReleaseMediaPlayerKeys("Spotify")
 
     def key_pressed(self, *keys):
         print "Received MediaPlayerKeyPressed:"
@@ -128,22 +69,15 @@ class SpotifyGnome(object):
                 elif key == "Previous":
                     self.spotify.Previous()
 
-    def initialize_telepathy(self):
-        print "Connecting to Telepathy..."
-        self.telepathy_accn_manager = telepathy.AccountManager.dup()
-        self.telepathy_accn_manager.prepare_async(None, lambda *args: self.telepathy_loop.quit(), None)
-        self.telepathy_away = True
 
-
-    def initialize_notifications(self):
+class CurrentSongHandler(object):
+    """Mixin used to connect to the session bus and update self.current_song on properties_changed.
+    Handlers using this mixin must implement current_song_changed(self)."""
+    def __init__(self, session_bus):
         self.current_song = {}
-
-        print "Creating notification..."
-        Notify.init("spotify-gnome")
-        self.notification = Notify.Notification.new("Spotify Gnome", None, None)
-
+        
         print "Connecting to PropertiesChanged..."
-        bus = self.session_bus.get_object("org.mpris.MediaPlayer2.spotify",
+        bus = session_bus.get_object("org.mpris.MediaPlayer2.spotify",
                                           "/org/mpris/MediaPlayer2")
         bus.connect_to_signal("PropertiesChanged",
                               self.properties_changed)
@@ -161,9 +95,33 @@ class SpotifyGnome(object):
                 self.current_song['albumArt'] = changed_properties['Metadata']['mpris:artUrl'].encode('utf-8')
             except KeyError:
                 print "Didn't get expected metadata"
+        
+        if 'PlaybackStatus' in changed_properties:
+            self.current_song['playback_status'] = changed_properties['PlaybackStatus']
+        
+        self.current_song_changed()
+    
+    def current_song_changed(self):
+        raise NotImplementedError("CurrentSongHandlers must implement current_song_changed(self)")
 
+
+class NotificationsHandler(Handler, CurrentSongHandler):
+    def __init__(self, session_bus):
+        CurrentSongHandler.__init__(self, session_bus)
+
+        print "Creating notification..."
+        Notify.init("spotify-gnome")
+        self.notification = Notify.Notification.new("Spotify Gnome", None, None)
+
+        print "Setting up temp directory"
+        self.cache_dir = os.path.join(GLib.get_user_cache_dir(), 'spotify-gnome')
+        if not os.path.isdir(self.cache_dir):
+            os.mkdir(self.cache_dir);
+
+    def current_song_changed(self):
         title = self.current_song['title']
         body = "{0}\n{1} ({2})".format(self.current_song['artist'], self.current_song['album'], self.current_song['year'])
+        
         iconUrl = self.current_song['albumArt']
         iconName = base64.urlsafe_b64encode(self.current_song['album'])+".png"
         try:
@@ -176,33 +134,122 @@ class SpotifyGnome(object):
         except Exception as e:
             print(e)
             icon = "media-playback-start"
-        
-        status_content = 'Spotify : '+self.current_song["title"]+' - '+self.current_song["artist"]
-        self.telepathy_away = False
 
-        if 'PlaybackStatus' in changed_properties:
-            if changed_properties['PlaybackStatus'] == 'Paused':
+        if 'playback_status' in self.current_song:
+            if self.current_song['playback_status'] == 'Paused':
                 title = "Paused"
                 body = None
                 icon = "media-playback-pause"
-                status_content = 'Spotify : Paused'
-                self.telepathy_away = True
-            if changed_properties['PlaybackStatus'] == 'Stopped':
+            if self.current_song['playback_status'] == 'Stopped':
                 title = "Stopped"
                 body = None
                 icon = "media-playback-stop"
-                status_content = 'Spotify : Stopped'
-                self.telepathy_away = True
 
         self.notification.update(title, body, icon)
         self.notification.show()
+
+    def shutdown(self):
+        self.notification.close()
+        Notify.uninit()
+
+
+class TelepathyHandler(Handler, CurrentSongHandler):
+    def __init__(self, session_bus):
+        CurrentSongHandler.__init__(self, session_bus)
+        
+        self.telepathy_loop = gobject.MainLoop()
+
+        print "Connecting to Telepathy..."
+        self.telepathy_accn_manager = telepathy.AccountManager.dup()
+        self.telepathy_accn_manager.prepare_async(None, lambda *args: self.telepathy_loop.quit(), None)
+        self.telepathy_away = True
+
+    def current_song_changed(self):
+        status_content = 'Spotify : '+self.current_song["title"]+' - '+self.current_song["artist"]
+        self.telepathy_away = False
+
+        if 'playback_status' in self.current_song:
+            if self.current_song['playback_status'] in ['Paused', 'Stopped']:
+                status_content = 'Spotify : ' + self.current_song['playback_status']
+                self.telepathy_away = True
+
         status = "♫ ".decode('utf8')+status_content+" ♫".decode('utf8')
-        if ENABLE_TELEPATHY :
-            if self.telepathy_away :
-                self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AWAY,'away', status)
+        if self.telepathy_away :
+            self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AWAY,'away', status)
+        else:
+            if not re.search('^spotify:|^https?://',self.current_song["album"]):
+                self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AVAILABLE,'available', status)
+
+    def shutdown(self):
+        pass
+
+
+class SpotifyGnome(object):
+    def __init__(self, handlers=[]):
+        pid = os.fork()
+
+        if pid == 0:
+            time.sleep(1)
+            print "Launching Spotify..."
+            args = [spotify_bin] + sys.argv[1:]
+            print " ".join(args)
+            os.execv(spotify_bin, args)
+
+        else:
+            self.handler_classes = handlers
+            self.handlers = []
+
+            print "Setting up DBus..."
+            bus_loop = DBusGMainLoop(set_as_default=True)
+            self.session_bus = dbus.SessionBus(mainloop=bus_loop)
+
+            print "Connecting to NameOwnerChanged..."
+            bus = self.session_bus.get_object("org.freedesktop.DBus",
+                                              "/org/freedesktop/DBus")
+            bus.connect_to_signal("NameOwnerChanged",
+                                  self.name_owner_changed,
+                                  arg0="org.mpris.MediaPlayer2.spotify")
+
+            try:
+                self.loop = gobject.MainLoop()
+                self.loop.run()
+            finally:
+                print "Done"
+
+    def name_owner_changed(self, name, before, after):
+        print "Received NameOwnerChanged:"
+        print "  {0} - {1} - {2}".format(name, before, after)
+
+        if name == "org.mpris.MediaPlayer2.spotify":
+            if after:
+                for handler_class in self.handler_classes:
+                    self.handlers.append(handler_class(self.session_bus))
             else:
-                if not re.search('^spotify:|^https?://',self.current_song["album"]):
-                    self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AVAILABLE,'available', status)
+                print "Shutting down"
+
+                for handler in self.handlers:
+                    handler.shutdown()
+
+                self.loop.quit()
+
+                print "Finished shutting down"
+
 
 if __name__ == "__main__":
-    SpotifyGnome()
+    handlers = [MediaKeysHandler]
+
+    try:
+        from gi.repository import Notify
+        from gi.repository import GObject as gobject
+        handlers.append(NotificationsHandler)
+    except:
+        print "Disabling notifications"
+        import gobject
+
+    try:
+        from gi.repository import TelepathyGLib as telepathy
+        handlers.append(TelepathyHandler)
+    except:
+        print "Disabling telepathy support"
+
+    SpotifyGnome(handlers)
