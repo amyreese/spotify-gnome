@@ -16,13 +16,7 @@ except:
     print "Disabling notifications"
     import gobject
     ENABLE_NOTIFICATIONS = False
-try:
-    from gi.repository import TelepathyGLib as telepathy
-    ENABLE_TELEPATHY = True
-except:
-    print "Disabling telepathy support"
-    import gobject
-    ENABLE_TELEPATHY = False
+
 
 spotify_bin = "/usr/bin/spotify"
 
@@ -81,11 +75,10 @@ class SpotifyGnome(object):
                 self.spotify = dbus.Interface(self.spotify_bus,
                                               "org.mpris.MediaPlayer2.Player")
                 self.mediakeys.GrabMediaPlayerKeys("Spotify", time.time())
-
+                self.initialize_telepathy()
                 if ENABLE_NOTIFICATIONS:
                     self.initialize_notifications()
-                if ENABLE_TELEPATHY:
-                    self.initialize_telepathy()
+
             else:
                 self.mediakeys.ReleaseMediaPlayerKeys("Spotify")
                 if ENABLE_NOTIFICATIONS:
@@ -117,10 +110,36 @@ class SpotifyGnome(object):
 
     def initialize_telepathy(self):
         print "Connecting to Telepathy..."
-        self.telepathy_accn_manager = telepathy.AccountManager.dup()
-        self.telepathy_accn_manager.prepare_async(None, lambda *args: self.telepathy_loop.quit(), None)
-        self.telepathy_away = True
+        self.ENABLE_TELEPATHY = False
+        try:
+            bus = dbus.SessionBus()
+            account_manager = bus.get_object('org.freedesktop.Telepathy.AccountManager',
+                                            '/org/freedesktop/Telepathy/AccountManager')
+            accounts = account_manager.Get('org.freedesktop.Telepathy.AccountManager',
+                                           'ValidAccounts')
+            self.ENABLE_TELEPATHY = True
+        except:
+            print "Telepathy not reachable"
+        if accounts:
+            self.account_list = []
+            for account in accounts:
+                account = bus.get_object('org.freedesktop.Telepathy.AccountManager',
+                                         str(account))
+                presence, status, message = account.Get('org.freedesktop.Telepathy.Account',
+                                                   'CurrentPresence')
+                self.account_list.append((account, presence, status, message))
 
+    def set_status(self, status='default'):
+        if self.ENABLE_TELEPATHY:
+            for account in self.account_list:
+                if status == 'default':
+                    status = account[3]
+                else:
+                    status = dbus.String(unicode(status))
+                account[0].Set('org.freedesktop.Telepathy.Account', 'RequestedPresence',
+                                dbus.Struct((account[1], account[2], status),
+                                signature=None, variant_level=1),
+                                dbus_interface='org.freedesktop.DBus.Properties')
 
     def initialize_notifications(self):
         self.current_song = {}
@@ -151,32 +170,31 @@ class SpotifyGnome(object):
         title = self.current_song['title']
         body = "{0}\n{1} ({2})".format(self.current_song['artist'], self.current_song['album'], self.current_song['year'])
         icon = "media-playback-start"
-        status_content = 'Spotify : '+self.current_song["title"]+' - '+self.current_song["artist"]
-        self.telepathy_away = False
+        status_content = 'Spotify : ' + self.current_song["title"] + ' - ' + self.current_song["artist"]
+        status = "♫ ".decode('utf8') + status_content + " ♫".decode('utf8')
 
         if 'PlaybackStatus' in changed_properties:
             if changed_properties['PlaybackStatus'] == 'Paused':
+                self.paused_stopped = True
                 title = "Paused"
                 body = None
                 icon = "media-playback-pause"
-                status_content = 'Spotify : Paused'
-                self.telepathy_away = True
+                status = 'default'
+
+
             if changed_properties['PlaybackStatus'] == 'Stopped':
+                self.paused_stopped = True
                 title = "Stopped"
                 body = None
                 icon = "media-playback-stop"
-                status_content = 'Spotify : Stopped'
-                self.telepathy_away = True
+                status = 'default'
+
 
         self.notification.update(title, body, icon)
         self.notification.show()
-        status = "♫ ".decode('utf8')+status_content+" ♫".decode('utf8')
-        if ENABLE_TELEPATHY :
-            if self.telepathy_away :
-                self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AWAY,'away', status)
-            else:
-                if not re.search('^spotify:|^https?://',self.current_song["album"]):
-                    self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AVAILABLE,'available', status)
+        if not re.search('^spotify:|^https?://', self.current_song["album"]):
+            self.set_status(status)
+
 
 if __name__ == "__main__":
     SpotifyGnome()
