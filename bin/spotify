@@ -55,12 +55,10 @@ class SpotifyGnome(object):
                                   self.key_pressed)
             self.mediakeys = dbus.Interface(bus,
                                             "org.gnome.SettingsDaemon.MediaKeys")
+            self.initialize_telepathy()
 
             self.loop = gobject.MainLoop()
-            self.telepathy_loop = gobject.MainLoop()
             self.loop.run()
-            self.telepathy_loop.run()
-
             print "Done"
 
     def name_owner_changed(self, name, before, after):
@@ -75,7 +73,6 @@ class SpotifyGnome(object):
                 self.spotify = dbus.Interface(self.spotify_bus,
                                               "org.mpris.MediaPlayer2.Player")
                 self.mediakeys.GrabMediaPlayerKeys("Spotify", time.time())
-                self.initialize_telepathy()
                 if ENABLE_NOTIFICATIONS:
                     self.initialize_notifications()
 
@@ -85,7 +82,6 @@ class SpotifyGnome(object):
                     self.notification.close()
                     Notify.uninit()
                 self.loop.quit()
-                self.telepathy_loop.quit()
 
     def key_pressed(self, *keys):
         print "Received MediaPlayerKeyPressed:"
@@ -110,20 +106,18 @@ class SpotifyGnome(object):
 
     def initialize_telepathy(self):
         print "Connecting to Telepathy..."
-        self.ENABLE_TELEPATHY = False
         try:
-            bus = dbus.SessionBus()
-            account_manager = bus.get_object('org.freedesktop.Telepathy.AccountManager',
+            account_manager = self.session_bus.get_object('org.freedesktop.Telepathy.AccountManager',
                                             '/org/freedesktop/Telepathy/AccountManager')
             accounts = account_manager.Get('org.freedesktop.Telepathy.AccountManager',
                                            'ValidAccounts')
             self.ENABLE_TELEPATHY = True
         except:
-            print "Telepathy not reachable"
+            self.ENABLE_TELEPATHY = False
         if accounts:
             self.account_list = []
             for account in accounts:
-                account = bus.get_object('org.freedesktop.Telepathy.AccountManager',
+                account = self.session_bus.get_object('org.freedesktop.Telepathy.AccountManager',
                                          str(account))
                 presence, status, message = account.Get('org.freedesktop.Telepathy.Account',
                                                    'CurrentPresence')
