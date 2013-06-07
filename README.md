@@ -46,7 +46,7 @@ Support
 -------
 
 Spotify-Gnome was created by [John Reese](http://johnmreese.com), and copyright (c) 2011.
-Telepathy support - [Dhananjay Sathe](http://dsathe.blogspot.com)
+Telepathy support - [Dhananjay Sathe](dhananjaysathe@gmail.com)
 Notification support - [Matthew Bray](http://bf.mattjbray.com)
 Spotify-Gnome is licensed under the MIT license.  See the LICENSE files for details.
 
