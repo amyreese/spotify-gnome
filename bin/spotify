@@ -76,7 +76,7 @@ class CurrentSongHandler(object):
     Handlers using this mixin must implement current_song_changed(self)."""
     def __init__(self, session_bus):
         self.current_song = {}
-        
+
         print "Connecting to PropertiesChanged..."
 
         bus = session_bus.get_object("org.mpris.MediaPlayer2.spotify",
@@ -97,12 +97,12 @@ class CurrentSongHandler(object):
                 self.current_song['albumArt'] = changed_properties['Metadata']['mpris:artUrl'].encode('utf-8')
             except KeyError:
                 print "Didn't get expected metadata"
-        
+
         if 'PlaybackStatus' in changed_properties:
             self.current_song['playback_status'] = changed_properties['PlaybackStatus']
-        
+
         self.current_song_changed()
-    
+
     def current_song_changed(self):
         raise NotImplementedError("CurrentSongHandlers must implement current_song_changed(self)")
 
@@ -159,7 +159,7 @@ class FetchAndUpdateCoverIcon(threading.Thread):
 
         self.notification = notification
         self.icon_url = icon_url
-        self.icon_name = base64.urlsafe_b64encode(album_name)+".png"
+        self.icon_name = base64.urlsafe_b64encode(album_name) + ".png"
         self.title = title
         self.body = body
         self.notification_lock = notification_lock
@@ -200,29 +200,47 @@ class FetchAndUpdateCoverIcon(threading.Thread):
 class TelepathyHandler(Handler, CurrentSongHandler):
     def __init__(self, session_bus):
         CurrentSongHandler.__init__(self, session_bus)
-        
-        self.telepathy_loop = gobject.MainLoop()
-
         print "Connecting to Telepathy..."
-        self.telepathy_accn_manager = telepathy.AccountManager.dup()
-        self.telepathy_accn_manager.prepare_async(None, lambda *args: self.telepathy_loop.quit(), None)
-        self.telepathy_away = True
+        try:
+            account_manager = session_bus.get_object('org.freedesktop.Telepathy.AccountManager',
+                                                '/org/freedesktop/Telepathy/AccountManager')
+            accounts = account_manager.Get('org.freedesktop.Telepathy.AccountManager',
+                                               'ValidAccounts')
+            self.ENABLE_TELEPATHY = True
+            if accounts:
+                self.account_list = []
+                for account in accounts:
+                    account = session_bus.get_object('org.freedesktop.Telepathy.AccountManager',
+                                             str(account))
+                    presence, status, message = account.Get('org.freedesktop.Telepathy.Account',
+                                                       'CurrentPresence')
+                    self.account_list.append((account, presence, status, message))
+            else:
+                print "No valid accounts found ,disabling Telepathy"
+                self.ENABLE_TELEPATHY = False
+        except:
+            print "Couldn't connect to DBUS Object ,disabling Telepathy"
+            self.ENABLE_TELEPATHY = False
+
+
 
     def current_song_changed(self):
-        status_content = 'Spotify : '+self.current_song["title"]+' - '+self.current_song["artist"]
-        self.telepathy_away = False
+        if self.ENABLE_TELEPATHY:
+            status_content = 'Spotify : ' + self.current_song["title"] + ' - ' + self.current_song["artist"]
+            status = "♫ ".decode('utf8') + status_content + " ♫".decode('utf8')
+            if 'playback_status' in self.current_song:
+                if self.current_song['playback_status'] in ['Paused', 'Stopped']:
+                    status = 'default'
 
-        if 'playback_status' in self.current_song:
-            if self.current_song['playback_status'] in ['Paused', 'Stopped']:
-                status_content = 'Spotify : ' + self.current_song['playback_status']
-                self.telepathy_away = True
-
-        status = "♫ ".decode('utf8')+status_content+" ♫".decode('utf8')
-        if self.telepathy_away :
-            self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AWAY,'away', status)
-        else:
-            if not re.search('^spotify:|^https?://',self.current_song["album"]):
-                self.telepathy_accn_manager.set_all_requested_presences(telepathy.ConnectionPresenceType.AVAILABLE,'available', status)
+            for account in self.account_list:
+                if status == 'default':
+                    status = account[3]
+                else:
+                    status = dbus.String(unicode(status))
+                account[0].Set('org.freedesktop.Telepathy.Account', 'RequestedPresence',
+                                dbus.Struct((account[1], account[2], status),
+                                signature=None, variant_level=1),
+                                dbus_interface='org.freedesktop.DBus.Properties')
 
     def shutdown(self):
         pass
@@ -281,7 +299,7 @@ class SpotifyGnome(object):
 
 
 if __name__ == "__main__":
-    handlers = [MediaKeysHandler]
+    handlers = [MediaKeysHandler, TelepathyHandler]
 
     try:
         from gi.repository import Notify
@@ -290,11 +308,5 @@ if __name__ == "__main__":
     except:
         print "Disabling notifications"
         import gobject
-
-    try:
-        from gi.repository import TelepathyGLib as telepathy
-        handlers.append(TelepathyHandler)
-    except:
-        print "Disabling telepathy support"
 
     SpotifyGnome(handlers)
