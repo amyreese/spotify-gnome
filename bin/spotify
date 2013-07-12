@@ -116,6 +116,7 @@ class NotificationsHandler(Handler, CurrentSongHandler):
         print "Creating notification..."
         Notify.init("spotify-gnome")
         self.notification = Notify.Notification.new("Spotify Gnome", None, None)
+        self.notification.set_hint_uint32("transient",1)
 
         print "Setting up temp directory"
         self.cache_dir = os.path.join(GLib.get_user_cache_dir(), 'spotify-gnome')
