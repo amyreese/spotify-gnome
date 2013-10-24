@@ -52,5 +52,5 @@ Telepathy support - [Dhananjay Sathe](dhananjaysathe@gmail.com)
 Notification support - [Matthew Bray](http://bf.mattjbray.com)
 Spotify-Gnome is licensed under the MIT license.  See the LICENSE files for details.
 
-Bugs can be reported on [my bug tracker](http://leetcode.net/mantis/).
+Bugs can be reported on [Github](https://github.com/jreese/spotify-gnome/issues).
 
