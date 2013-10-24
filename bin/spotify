@@ -5,6 +5,7 @@ import base64
 import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
+import optparse
 import os
 import subprocess
 import sys
@@ -300,14 +301,34 @@ class SpotifyGnome(object):
 
 
 if __name__ == "__main__":
-    handlers = [MediaKeysHandler, TelepathyHandler]
+    parser = optparse.OptionParser()
+    parser.add_option("--no-keys", dest="keys", default=True,
+                      action="store_false", help="disable media keys")
+    parser.add_option("--no-telpathy", dest="telepathy", default=True,
+                      action="store_false", help="disable telepathy support")
+    parser.add_option("--no-notify", dest="notify", default=True,
+                      action="store_false", help="disable notifications")
+    options, args = parser.parse_args()
+
+    handlers = []
+
+    if options.keys:
+        print "Enabling media keys"
+        handlers.append(MediaKeysHandler)
+
+    if options.telepathy:
+        print "Enabling telepathy"
+        handlers.append(TelepathyHandler)
 
     try:
         from gi.repository import Notify
         from gi.repository import GObject as gobject
-        handlers.append(NotificationsHandler)
+
+        if options.notify:
+            print "Enabling notifications"
+            handlers.append(NotificationsHandler)
+
     except:
-        print "Disabling notifications"
         import gobject
 
     SpotifyGnome(handlers)
