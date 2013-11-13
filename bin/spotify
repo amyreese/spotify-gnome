@@ -60,7 +60,10 @@ class MediaKeysHandler(Handler):
                     pass
 
                 elif key == "Play":
-                    self.spotify.PlayPause()
+                    if 'cinnamon' == os.getenv('GDMSESSION'):
+                        self.spotify.Play()
+                    else:
+                        self.spotify.PlayPause()
 
                 elif key == "Stop":
                     self.spotify.Stop()
