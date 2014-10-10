@@ -1,7 +1,7 @@
 Spotify Gnome Integration
 -------------------------
 
-[![Stories in Ready](http://badge.waffle.io/jreese/spotify-gnome.png)](http://waffle.io/jreese/spotify-gnome)
+**NOTE: This project is no longer required in order to use media keys with Spotify on Gnome.  It will not receive any updates going forward.**
 
 This program provides Gnome media key support for the
 [Spotify Linux client](http://www.spotify.com/us/download/previews/).
