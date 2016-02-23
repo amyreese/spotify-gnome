@@ -61,6 +61,9 @@ class MediaKeysHandler(Handler):
 
                 elif key == "Play":
                     self.spotify.PlayPause()
+                    
+                elif key == "Pause":
+                    self.spotify.PlayPause()
 
                 elif key == "Stop":
                     self.spotify.Stop()
